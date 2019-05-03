@@ -11,12 +11,12 @@ module OssEmulator
   module Bucket
 
     # GetService=ListBuckets
-    def self.get_service(response) 
+    def self.get_service(response)
       Bucket.list_buckets(response)
     end
 
     # ListBuckets=GetService
-    def self.list_buckets(response) 
+    def self.list_buckets(response)
       body = ""
       xml = Builder::XmlMarkup.new(:target => body)
       xml.instruct! :xml, :version=>"1.0", :encoding=>"UTF-8"
@@ -41,7 +41,7 @@ module OssEmulator
       }
 
       dataset = {
-        cmd: Request::LIST_BUCKETS, 
+        cmd: Request::LIST_BUCKETS,
         body: body
       }
       OssResponse.response_ok(response, dataset)
@@ -50,11 +50,14 @@ module OssEmulator
     # PutBucket=CreateBucket
     def self.create_bucket(bucket, request, response)
       # InvalidBucketName
+      puts 100
       return if OssResponse.response_invalid_bucket_name(response, bucket)
 
+      puts 200
       # TooManyBuckets
       return if OssResponse.response_too_many_buckets(response)
 
+      puts 300
       bucket_folder = File.join(Config.store, bucket)
       bucket_metadata_file = File.join(bucket_folder, Store::BUCKET_METADATA)
       if not ( File.exist?(bucket_folder) && File.exist?(bucket_metadata_file) )
@@ -67,12 +70,12 @@ module OssEmulator
           f << YAML::dump(metadata)
         end
       end
-      
+
       OssResponse.response_ok(response, Request::PUT_BUCKET)
     end
 
     # PutBucketACL
-    def self.put_bucket_acl(response) 
+    def self.put_bucket_acl(response)
       OssResponse.response_ok(response)
     end
 
@@ -102,7 +105,7 @@ module OssEmulator
       }
 
       dataset = {
-        :cmd => Request::GET_BUCKET, 
+        :cmd => Request::GET_BUCKET,
         :body => body
       }
       OssResponse.response_ok(response, dataset)
@@ -116,7 +119,7 @@ module OssEmulator
       OssResponse.response_ok(response, Request::GET_BUCKET_ACL)
     end
 
-    # GetBucketLocation:  
+    # GetBucketLocation:
     def self.get_bucket_location(response)
       OssResponse.response_ok(response, Request::GET_BUCKET_LOCATION)
     end

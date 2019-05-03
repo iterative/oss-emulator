@@ -1,5 +1,5 @@
 require 'builder'
-require "rexml/document"  
+require "rexml/document"
 require 'emulator/config'
 require 'emulator/util'
 require 'emulator/response'
@@ -25,7 +25,7 @@ module OssEmulator
         # InvalidArgument : Filesize <= 5G
         if content_length>Object::MAX_OBJECT_FILE_SIZE
           OssResponse.response_error(response, ErrorCode::INVALID_ARGUMENT)
-          return  
+          return
         end
       else
         if request.header.include?('transfer-encoding')
@@ -44,6 +44,7 @@ module OssEmulator
       end
 
       obj_dir = File.join(Config.store, bucket, object)
+      puts obj_dir
       if part_number
         object_content_filename = File.join(obj_dir, "#{Store::OBJECT_CONTENT_PREFIX}#{part_number}")
       else
@@ -51,7 +52,7 @@ module OssEmulator
         object_content_filename = File.join(obj_dir, Store::OBJECT_CONTENT)
       end
       FileUtils.mkdir_p(obj_dir) unless File.exist?(obj_dir)
-      f_object_content = File.new(object_content_filename, 'a')  
+      f_object_content = File.new(object_content_filename, 'a')
       f_object_content.binmode
 
       content_type = request.content_type || ""
@@ -69,13 +70,15 @@ module OssEmulator
         f_object_content.syswrite(form_data['file'])
       else
         total_size = 0
-        request.body do |chunk| 
+        puts total_size
+        request.body do |chunk|
+          puts chunk
           f_object_content.syswrite(chunk)
           total_size += chunk.bytesize
           if check_chunked_filesize && total_size>Object::MAX_OBJECT_FILE_SIZE
             OssUtil.delete_object_file_and_dir(bucket, object)
             OssResponse.response_error(response, ErrorCode::INVALID_ARGUMENT)
-            return  
+            return
           end
         end
       end
@@ -178,7 +181,7 @@ module OssEmulator
       dataset[:bucket] = req.bucket
       dataset[:object] = req.object
       dataset[:md5] = metadata[:md5]
-      dataset[:multipart] = File.exist?(object_multipart_content_tag) ? true : false 
+      dataset[:multipart] = File.exist?(object_multipart_content_tag) ? true : false
       dataset[:content_type] = request.query['response-content-type'] || metadata.fetch(:content_type) { "application/octet-stream" }
       dataset[:content_disposition] = request.query['response-content-disposition'] || metadata[:content_disposition]
       dataset[:content_encoding] = metadata.fetch(:content_encoding)
@@ -207,7 +210,7 @@ module OssEmulator
           dataset[:pos] = start
           dataset[:bytes_to_read] = finish - start + 1
           dataset['Content-Range'] = "bytes #{start}-#{finish_str}/#{content_length}"
-        end 
+        end
       else
         dataset['Content-Length'] = dataset[:size]
       end #if range
@@ -227,14 +230,14 @@ module OssEmulator
         dataset = YAML.load(File.open(metadata_filename, 'rb').read)
         if !dataset.include?(:appendable) || (dataset.include?(:appendable) && dataset[:appendable]!=true)
           OssResponse.response_error(response, ErrorCode::OBJECT_NOT_APPENDABLE)
-          return  
+          return
         end
       end
 
       FileUtils.mkdir_p(obj_dir)
 
       content_filename = File.join(obj_dir, Store::OBJECT_CONTENT)
-      File.open(content_filename, 'a+')  do |f| 
+      File.open(content_filename, 'a+')  do |f|
         f.binmode
         f.pos = (position.to_i==-1) ? File.size(content_filename) : position.to_i
         f.syswrite(request.body)
@@ -260,7 +263,7 @@ module OssEmulator
     end
 
     # DeleteMultipleObjects
-    def self.delete_multiple_objects(bucket, request, response) 
+    def self.delete_multiple_objects(bucket, request, response)
       xml = Document.new(request.body)
       quiet = xml.root.elements["/Delete/Quiet"].text
       object_list = []
@@ -269,17 +272,17 @@ module OssEmulator
         object_list << object
         Object.delete_object(bucket, object, response)
       end
-      
+
       dataset = { cmd: Request::DELETE_MULTIPLE_OBJECTS }
       if quiet.downcase=="false"
-        dataset[:object_list] = object_list      
+        dataset[:object_list] = object_list
       end
 
       OssResponse.response_ok(response, dataset)
     end
 
     # HeadObject
-    def self.head_object(bucket, object, response) 
+    def self.head_object(bucket, object, response)
       # NoSuchObject
       return if OssResponse.response_no_such_object(response, bucket, object)
 
@@ -291,7 +294,7 @@ module OssEmulator
     end
 
     # GetObjectMeta
-    def self.get_object_meta(bucket, object, request, response) 
+    def self.get_object_meta(bucket, object, request, response)
       # NoSuchObject
       return if OssResponse.response_no_such_object(response, bucket, object)
 
@@ -303,10 +306,10 @@ module OssEmulator
     end
 
     # PutObjectACL
-    def self.put_object_acl(bucket, object, request, response) 
+    def self.put_object_acl(bucket, object, request, response)
       # NoSuchObject
       return if OssResponse.response_no_such_object(response, bucket, object)
-      
+
       object_metadata_filename = File.join(Config.store, bucket, object, Store::OBJECT_METADATA)
       dataset = File.open(object_metadata_filename) { |file| YAML::load(file) }
       acl_old = dataset[:acl]
@@ -320,7 +323,7 @@ module OssEmulator
     end
 
     # GetObjectACL
-    def self.get_object_acl(bucket, object, response) 
+    def self.get_object_acl(bucket, object, response)
       # NoSuchObject
       return if OssResponse.response_no_such_object(response, bucket, object)
 

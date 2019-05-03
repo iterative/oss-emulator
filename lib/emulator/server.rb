@@ -22,9 +22,9 @@ module OssEmulator
       req.parse()
 
       case req.cmd
-      when Request::HEAD_OBJECT 
+      when Request::HEAD_OBJECT
         Object.head_object(req.bucket, req.object, response)
-      else 
+      else
         OssResponse.response_error(response, ErrorCode::BAD_REQUEST)
       end #case
     rescue
@@ -66,7 +66,7 @@ module OssEmulator
         OssResponse.response_error(response, ErrorCode::NOT_IMPLEMENTED)
       when Request::GET_LIST_PARTS
         OssResponse.response_error(response, ErrorCode::NOT_IMPLEMENTED)
-      else 
+      else
         OssResponse.response_error(response, ErrorCode::BAD_REQUEST)
       end #case
     rescue
@@ -74,6 +74,7 @@ module OssEmulator
     end # do_GET
 
     def do_PUT(request, response)
+      puts request
       req = OssEmulator::Request.new(request)
       req.parse()
 
@@ -102,7 +103,7 @@ module OssEmulator
         OssResponse.response_error(response, ErrorCode::NOT_IMPLEMENTED)
       when Request::PUT_COPY_OBJECT
         Object.copy_object(req.src_bucket, req.src_object, req.bucket, req.object, request, response)
-      else 
+      else
         OssResponse.response_error(response, ErrorCode::BAD_REQUEST)
       end #case
     rescue
@@ -114,17 +115,17 @@ module OssEmulator
       req.parse()
 
       case req.cmd
-      when Request::POST_INIT_MULTIPART_UPLOAD 
+      when Request::POST_INIT_MULTIPART_UPLOAD
         Multipart.initiate_multipart_upload(req.bucket, req.object, response)
-      when Request::POST_APPEND_OBJECT  
+      when Request::POST_APPEND_OBJECT
         Object.append_object(req.bucket, req.object, request, req.query_parser['position'].first, response)
-      when Request::POST_COMPLETE_MULTIPART_UPLOAD  
+      when Request::POST_COMPLETE_MULTIPART_UPLOAD
         Multipart.complete_multipart_upload(req, request, response)
       when Request::DELETE_MULTIPLE_OBJECTS
         Object.delete_multiple_objects(req.bucket, request, response)
       when Request::POST_OBJECT
         OssResponse.response_error(response, ErrorCode::NOT_IMPLEMENTED)
-      else 
+      else
         OssResponse.response_error(response, ErrorCode::BAD_REQUEST)
       end #case
     rescue
@@ -150,7 +151,7 @@ module OssEmulator
         OssResponse.response_error(response, ErrorCode::NOT_IMPLEMENTED)
       when Request::REQUEST_ERROR
         OssResponse.response_error(response, ErrorCode::BAD_REQUEST)
-      else 
+      else
         OssResponse.response_error(response, ErrorCode::BAD_REQUEST)
       end #case
     rescue
@@ -213,6 +214,6 @@ module OssEmulator
     def shutdown
       @server.shutdown
     end
-  end #class Server 
+  end #class Server
 
 end #module

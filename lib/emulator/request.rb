@@ -7,16 +7,16 @@ module OssEmulator
     PUT_BUCKET_LOGGING = "PUT_BUCKET_LOGGING"
     PUT_BUCKET_REFERER = "PUT_BUCKET_REFERER"
     PUT_BUCKET_WEBSITE = "PUT_BUCKET_WEBSITE"
-    PUT_BUCKET_LIFECYCLE = "PUT_BUCKET_LIFECYCLE" 
+    PUT_BUCKET_LIFECYCLE = "PUT_BUCKET_LIFECYCLE"
 
     PUT_OBJECT = "PUT_OBJECT"
     PUT_OBJECT_ACL = "PUT_OBJECT_ACL"
-    PUT_SYMLINK = "PUT_SYMLINK" 
+    PUT_SYMLINK = "PUT_SYMLINK"
     PUT_UPLOAD_PART = "PUT_UPLOAD_PART"
     PUT_UPLOAD_PART_COPY = "PUT_UPLOAD_PART_COPY"
     PUT_COPY_OBJECT = "PUT_COPY_OBJECT"
 
-    LIST_BUCKETS = "LIST_BUCKETS" 
+    LIST_BUCKETS = "LIST_BUCKETS"
     GET_BUCKET = "GET_BUCKET"
     GET_BUCKET_ACL = "GET_BUCKET_ACL"
     GET_BUCKET_INFO = "GET_BUCKET_INFO"
@@ -24,12 +24,12 @@ module OssEmulator
     GET_BUCKET_LOGGING = "GET_BUCKET_LOGGING"
     GET_BUCKET_REFERER = "GET_BUCKET_REFERER"
     GET_BUCKET_WEBSITE = "GET_BUCKET_WEBSITE"
-    GET_BUCKET_LIFECYCLE = "GET_BUCKET_LIFECYCLE" 
+    GET_BUCKET_LIFECYCLE = "GET_BUCKET_LIFECYCLE"
 
     GET_OBJECT = "GET_OBJECT"
     GET_OBJECT_ACL = "GET_OBJECT_ACL"
     GET_OBJECT_META = "GET_OBJECT_META"
-    GET_SYMLINK = "GET_SYMLINK" 
+    GET_SYMLINK = "GET_SYMLINK"
 
     GET_LIST_MULTIPART_UPLOADS = "GET_LIST_MULTIPART_UPLOADS"
     GET_LIST_PARTS = "GET_LIST_PARTS"
@@ -55,18 +55,20 @@ module OssEmulator
 
     REQUEST_ERROR = "REQUEST_ERROR"
 
-    attr_accessor :request, :host, :is_path_style, :path, :query, :query_parser, :method, :cmd, 
+    attr_accessor :request, :host, :is_path_style, :path, :query, :query_parser, :method, :cmd,
                   :bucket, :bucket_name, :object, :src_bucket, :src_object, :path_length
 
     def initialize(request)
+      puts request
       @request = request
       @query = @request.query
       @query_parser = CGI::parse(request.request_uri.query || "")
-      @path = @request.path
+      splits = @request.path.split('/', 3)
+      @path = splits[2]
       @path_length = @request.path.size
       @cmd ||= ''
-      @bucket ||= ''
-      @object ||= ''
+      @bucket = splits[1]
+      @object = @path
       @src_bucket ||= ''
       @src_object ||= ''
     end
@@ -85,11 +87,11 @@ module OssEmulator
       end
       @is_path_style = true
 
-      if !Config.hostnames.include?(@host) && !(IPAddr.new(@host) rescue nil)
-        @bucket = @host.split(".")[0]
-        @is_path_style = false
-        Log.info("Request.parse : @is_path_style=false, Config.hostnames=#{Config.hostnames}, @host=#{Config.host}", "blue")
-      end
+      # if !Config.hostnames.include?(@host) && !(IPAddr.new(@host) rescue nil)
+      #   @bucket = @host.split(".")[0]
+      #   @is_path_style = false
+      #   Log.info("Request.parse : @is_path_style=false, Config.hostnames=#{Config.hostnames}, @host=#{Config.host}", "blue")
+      # end
 
       @method = @request.request_method
 
@@ -111,76 +113,48 @@ module OssEmulator
     end
 
     def parse_put()
-      if @path == "/"
-        if @bucket
-          @cmd = Request::PUT_BUCKET
-        end
+      if @path == "" && !@request.query_string
+        @cmd = Request::PUT_BUCKET
       else
-        if @is_path_style
-          elems = @path[1,@path_length].split("/")
-          @bucket = elems[0]
-          if elems.size == 1
-            if @request.request_line =~ /\?acl/
-              @cmd = Request::PUT_BUCKET_ACL
-            elsif @request.request_line =~ /\?logging/
-              @cmd = Request::PUT_BUCKET_LOGGING
-            elsif @request.request_line =~ /\?website/
-              @cmd = Request::PUT_BUCKET_WEBSITE
-            elsif @request.request_line =~ /\?referer/
-              @cmd = Request::PUT_BUCKET_REFERER
-            elsif @request.request_line =~ /\?lifecycle/
-              @cmd = Request::PUT_BUCKET_LIFECYCLE
-            else
-              if @request.header.include?('x-oss-acl')
-                @cmd = Request::PUT_BUCKET_ACL
-              else
-                @cmd = Request::PUT_BUCKET
-              end
-            end
-          else
-            if @request.request_line =~ /\?acl/
-              @cmd = Request::PUT_OBJECT_ACL
-            elsif @request.request_line =~ /\?symlink/
-              @cmd = Request::PUT_SYMLINK
-            elsif @request.request_line =~ /\?partNumber=/  
-              if @request.header.include?('x-oss-copy-source')
-                @cmd = Request::PUT_UPLOAD_PART_COPY
-              else
-                @cmd = Request::PUT_UPLOAD_PART
-              end
-            else
-              if @request.header.include?('x-oss-copy-source')
-                @cmd = Request::PUT_COPY_OBJECT
-              else
-                @cmd = Request::PUT_OBJECT
-              end
-            end
-
-            @object = elems[1,elems.size].join('/')
-          end
+        if @request.query_string = "acl="
+          @cmd = Request::PUT_BUCKET_ACL
+        elsif @request.query_string =~ /\?logging/
+          @cmd = Request::PUT_BUCKET_LOGGING
+        elsif @request.query_string =~ /\?website/
+          @cmd = Request::PUT_BUCKET_WEBSITE
+        elsif @request.query_string =~ /\?referer/
+          @cmd = Request::PUT_BUCKET_REFERER
+        elsif @request.query_string =~ /\?lifecycle/
+          @cmd = Request::PUT_BUCKET_LIFECYCLE
         else
-          if @request.request_line =~ /\?acl/
+          if @request.header.include?('x-oss-acl')
             @cmd = Request::PUT_BUCKET_ACL
-          elsif @request.request_line =~ /\?logging/
-            @cmd = Request::PUT_BUCKET_LOGGING
-          elsif @request.request_line =~ /\?website/
-            @cmd = Request::PUT_BUCKET_WEBSITE
-          elsif @request.request_line =~ /\?referer/
-            @cmd = Request::PUT_BUCKET_REFERER
-          elsif @request.request_line =~ /\?lifecycle/
-            @cmd = Request::PUT_BUCKET_LIFECYCLE
           else
-            if @request.header.include?('x-oss-acl')
-              @cmd = Request::PUT_BUCKET_ACL
-            else
-              @cmd = Request::PUT_BUCKET
-            end
+            @cmd = Request::PUT_BUCKET
           end
-
-          @cmd = @request.path[1..-1]
         end
+          # else
+          #   if @request.request_line =~ /\?acl/
+          #     @cmd = Request::PUT_OBJECT_ACL
+          #   elsif @request.request_line =~ /\?symlink/
+          #     @cmd = Request::PUT_SYMLINK
+          #   elsif @request.request_line =~ /\?partNumber=/
+          #     if @request.header.include?('x-oss-copy-source')
+          #       @cmd = Request::PUT_UPLOAD_PART_COPY
+          #     else
+          #       @cmd = Request::PUT_UPLOAD_PART
+          #     end
+          #   else
+          #     if @request.header.include?('x-oss-copy-source')
+          #       @cmd = Request::PUT_COPY_OBJECT
+          #     else
+          #       @cmd = Request::PUT_OBJECT
+          #     end
+          #   end
+          # end
+          # @cmd = @request.path[1..-1]
+          # end
       end
-
       # Also parse x-oss-copy-source-range:bytes=first-last header for multipart copy
       copy_source = @request.header["x-oss-copy-source"]
       if copy_source && copy_source.size == 1
@@ -193,8 +167,7 @@ module OssEmulator
     end
 
     def parse_get()
-      @path_length = @path.size
-      if @path == "/" && @is_path_style
+      if @path == ""
         if @request.request_line =~ /\?uploads/
           @cmd = Request::GET_LIST_MULTIPART_UPLOADS
         elsif @request.request_line =~ /\?logging/
@@ -205,13 +178,13 @@ module OssEmulator
           @cmd = Request::GET_BUCKET_REFER
         elsif @request.request_line =~ /\?lifecycle/
           @cmd = Request::GET_BUCKET_LIFECYCLE
-        else 
+        else
           @cmd = Request::LIST_BUCKETS
         end
       else
         if @is_path_style
           elems = @path[1,@path_length].split("/")
-          @bucket = elems[0]
+          # @bucket = elems[0]
         else
           elems = @path.split("/")
         end
@@ -226,7 +199,7 @@ module OssEmulator
           else
             @cmd = Request::GET_BUCKET
           end
-        else  # bucket && object 
+        else  # bucket && object
           if query["acl"] == ""
             @cmd = Request::GET_OBJECT_ACL
           elsif query["objectMeta"] == "" || @request.request_line =~ /\?objectMeta/
@@ -242,7 +215,7 @@ module OssEmulator
               @cmd = Request::GET_OBJECT
             end
           end
-          @object = elems[1,elems.size].join('/')
+          # @object = elems[1,elems.size].join('/')
         end
       end
     end
@@ -272,12 +245,12 @@ module OssEmulator
           end
         else
           # AbortMultipartUpload
-          if @request.request_line =~ /\?uploadId/  
+          if @request.request_line =~ /\?uploadId/
             @cmd = Request::DELETE_ABORT_MULTIPART_UPLOAD
           else
             @cmd = Request::DELETE_OBJECT
           end
-          @object = elems[1,elems.size].join('/')
+          # @object = elems[1,elems.size].join('/')
         end
       end
     end
@@ -287,10 +260,10 @@ module OssEmulator
 
       if @is_path_style
         elems = @path[1, @path_length].split("/")
-        @bucket = elems[0]
-        @object = elems[1..-1].join('/') if elems.size >= 2
+        # @bucket = elems[0]
+        # @object = elems[1..-1].join('/') if elems.size >= 2
       else
-        @object = @path[1..-1]
+        # @object = @path[1..-1]
       end
 
       if @query_parser.has_key?('uploads')  # InitiateMultipartUpload
