@@ -59,7 +59,6 @@ module OssEmulator
                   :bucket, :bucket_name, :object, :src_bucket, :src_object, :path_length
 
     def initialize(request)
-      puts request
       @request = request
       @query = @request.query
       @query_parser = CGI::parse(request.request_uri.query || "")

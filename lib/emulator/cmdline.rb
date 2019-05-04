@@ -1,3 +1,4 @@
+# coding: utf-8
 require 'thor'
 require 'emulator/server'
 require 'emulator/config'
@@ -20,7 +21,7 @@ module OssEmulator
       Config.init()
       Config.set_quiet_mode(options[:quiet])
       Config.set_log_level(options[:loglevel].downcase) if options[:loglevel]
-      
+
       if options[:root]
         root_dir = File.expand_path(options[:root])
         if root_dir==File.expand_path(Store::STORE_ROOT_DIR) && !File.exist?(root_dir)
@@ -49,7 +50,7 @@ module OssEmulator
       if (ssl_cert_path.nil? && !ssl_key_path.nil?) || (!ssl_cert_path.nil? && ssl_key_path.nil?)
         Log.abort("If you specify an SSL certificate you must also specify an SSL certificate key")
       end
-  
+
       # Start Server
       Log.info("Loading OssEmulator on port #{options[:port]} with hostname #{Config.host} . ")
       Log.info("OssEmulator Store root is #{Config.store}, Log level is #{Log.level} . ")
