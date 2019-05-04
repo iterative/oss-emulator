@@ -16,7 +16,7 @@ module OssEmulator
 
     def self.valid_bucket_name(name)
       return false unless name.is_a?(String)
-  
+
       set = Bucket::BUCKET_NAME_CHAR_SET
       sub_set = set[0..-2]
       if not (name.length>=3 && name.length<=Bucket::MAX_BUCKET_NAME_LENGTH && sub_set.include?(name[0]) && sub_set.include?(name[-1]))
@@ -40,11 +40,11 @@ module OssEmulator
       if name.encoding!=Encoding::UTF_8
         return false
       end
-  
+
       if name[0]=='\\' || name[0]=='/'
         return false
       end
-      
+
       if name.bytesize<1 || name.bytesize>Object::MAX_OBJECT_NAME_LENGTH
         return false
       end
@@ -73,65 +73,64 @@ module OssEmulator
       end
 
       bucket_path = File.join(Config.store, req.bucket, '/')
-
-
       find_root_folder = File.join(Config.store, req.bucket, prefix, '/')
       object_list = []
       common_prefix_list = []
       is_truncated = false
       count = 0
 
-      Find.find(find_root_folder) do |filename|
-        if File.basename(filename)==Store::OBJECT_METADATA
-          key_name = File.dirname(filename).gsub(bucket_path, "")
-          if marker_found && (!prefix || key_name.index(prefix)==0 || key_name.index(prefix)==1)
-            if delimiter
-              right_key_name = key_name.slice(prefix_offset, key_name.length)
-              right_parts = right_key_name.split(delimiter, 2)
-              
-              if right_parts.length>1
-                mid_part = right_parts[0]
-                common_prefix = prefix + mid_part + delimiter
-                if !common_prefix_list.include?(common_prefix)
-                  count += 1
-                  if count <= max_keys
-                    common_prefix_list << common_prefix
-                  else
-                    is_truncated = true
-                    break
+      if FileTest::exist?(find_root_folder)
+        Find.find(find_root_folder) do |filename|
+          if File.basename(filename)==Store::OBJECT_METADATA
+            key_name = File.dirname(filename).gsub(bucket_path, "")
+            if marker_found && (!prefix || key_name.index(prefix)==0 || key_name.index(prefix)==1)
+              if delimiter
+                right_key_name = key_name.slice(prefix_offset, key_name.length)
+                right_parts = right_key_name.split(delimiter, 2)
+
+                if right_parts.length>1
+                  mid_part = right_parts[0]
+                  common_prefix = prefix + mid_part + delimiter
+                  if !common_prefix_list.include?(common_prefix)
+                    count += 1
+                    if count <= max_keys
+                      common_prefix_list << common_prefix
+                    else
+                      is_truncated = true
+                      break
+                    end
                   end
+
+                  next
                 end
 
-                next
               end
 
+              count += 1
+              if count <= max_keys
+                obj_hash = {}
+                obj_hash[:bucket] = req.bucket
+                obj_hash[:key] = key_name
+                metadata = File.open(filename) { |file| YAML::load(file) }
+                obj_hash[:md5] = metadata.key?(:md5) ? metadata[:md5].upcase : ''
+                obj_hash[:content_type] = metadata.fetch(:content_type) { "application/octet-stream" }
+                obj_hash[:size] = metadata.fetch(:size) { 0 }
+                obj_hash[:storageclass] = "Standard"
+                obj_hash[:modified_date] = metadata[:modified_date]
+                object_list << obj_hash
+              else
+                is_truncated = true
+                break
+              end
             end
-            
-            count += 1
-            if count <= max_keys
-              obj_hash = {}
-              obj_hash[:bucket] = req.bucket
-              obj_hash[:key] = key_name
-              metadata = File.open(filename) { |file| YAML::load(file) }
-              obj_hash[:md5] = metadata.key?(:md5) ? metadata[:md5].upcase : ''
-              obj_hash[:content_type] = metadata.fetch(:content_type) { "application/octet-stream" }
-              obj_hash[:size] = metadata.fetch(:size) { 0 }
-              obj_hash[:storageclass] = "Standard"
-              obj_hash[:modified_date] = metadata[:modified_date]
-              object_list << obj_hash
-            else
-              is_truncated = true
-              break
+
+            cmp = marker<=>key_name
+            if marker && (cmp <= 0)
+              marker_found = true
             end
-          end
-
-          cmp = marker<=>key_name
-          if marker && (cmp <= 0)
-            marker_found = true
-          end
-        end # if 
-      end # Find.find
-
+          end # if
+        end # Find.find
+      end
       lbr.IsTruncated(is_truncated)
       object_list.each do |obj_hash|
         lbr.Contents { |contents|
@@ -141,21 +140,19 @@ module OssEmulator
           contents.Type("Multipart")
           contents.Size(obj_hash[:size])
           contents.StorageClass(obj_hash[:storageclass])
-          contents.Owner { |node| 
+          contents.Owner { |node|
             node.ID("00220120222")
             node.DisplayName("1390402650033793")
           }
         }
       end
-      
       common_prefix_list.each do |item|
         lbr.CommonPrefixes { |node|
           node.Prefix(item)
         }
       end
- 
     end #get_bucket_list_objects
-    
+
     def self.delete_object_file_and_dir(bucket, object)
       bucket_dir = File.join(Config.store, bucket)
       object_dir = File.join(bucket_dir, object)
@@ -169,10 +166,10 @@ module OssEmulator
         Find.find(current_level_folder) do |filename|
           return if filename.include?(Store::OBJECT_METADATA)
         end
-        
+
         FileUtils.rm_rf(current_level_folder)
         current_level_folder = File.dirname(current_level_folder)
-      end 
+      end
     end
 
     def self.put_object_metadata(bucket, object, request, options = nil)
@@ -201,7 +198,7 @@ module OssEmulator
       else
         metadata[:size] = File.size(content_filename)
         metadata[:part_size] = 0
-        metadata[:md5] = Digest::MD5.file(content_filename).hexdigest 
+        metadata[:md5] = Digest::MD5.file(content_filename).hexdigest
       end
 
       # construct metadata : add custom metadata from the request header
