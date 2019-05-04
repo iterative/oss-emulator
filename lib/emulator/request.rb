@@ -115,16 +115,16 @@ module OssEmulator
     def parse_put()
       if @path == "" && !@request.query_string
         @cmd = Request::PUT_BUCKET
-      else
-        if @request.query_string = "acl="
+      elsif @path == "" && @request.query_string
+        if @request.query_string == "acl="
           @cmd = Request::PUT_BUCKET_ACL
-        elsif @request.query_string =~ /\?logging/
+        elsif @request.query_string == "logging="
           @cmd = Request::PUT_BUCKET_LOGGING
-        elsif @request.query_string =~ /\?website/
+        elsif @request.query_string == "website="
           @cmd = Request::PUT_BUCKET_WEBSITE
-        elsif @request.query_string =~ /\?referer/
+        elsif @request.query_string == "referer="
           @cmd = Request::PUT_BUCKET_REFERER
-        elsif @request.query_string =~ /\?lifecycle/
+        elsif @request.query_string == "lifecycle="
           @cmd = Request::PUT_BUCKET_LIFECYCLE
         else
           if @request.header.include?('x-oss-acl')
@@ -133,27 +133,24 @@ module OssEmulator
             @cmd = Request::PUT_BUCKET
           end
         end
-          # else
-          #   if @request.request_line =~ /\?acl/
-          #     @cmd = Request::PUT_OBJECT_ACL
-          #   elsif @request.request_line =~ /\?symlink/
-          #     @cmd = Request::PUT_SYMLINK
-          #   elsif @request.request_line =~ /\?partNumber=/
-          #     if @request.header.include?('x-oss-copy-source')
-          #       @cmd = Request::PUT_UPLOAD_PART_COPY
-          #     else
-          #       @cmd = Request::PUT_UPLOAD_PART
-          #     end
-          #   else
-          #     if @request.header.include?('x-oss-copy-source')
-          #       @cmd = Request::PUT_COPY_OBJECT
-          #     else
-          #       @cmd = Request::PUT_OBJECT
-          #     end
-          #   end
-          # end
-          # @cmd = @request.path[1..-1]
-          # end
+      else
+        if @request.query_string == "acl="
+          @cmd = Request::PUT_OBJECT_ACL
+        elsif @request.query_string == "symlink="
+          @cmd = Request::PUT_SYMLINK
+        elsif @request.query_string == "partNumber="
+          if @request.header.include?('x-oss-copy-source')
+            @cmd = Request::PUT_UPLOAD_PART_COPY
+          else
+            @cmd = Request::PUT_UPLOAD_PART
+          end
+        else
+          if @request.header.include?('x-oss-copy-source')
+            @cmd = Request::PUT_COPY_OBJECT
+          else
+            @cmd = Request::PUT_OBJECT
+          end
+        end
       end
       # Also parse x-oss-copy-source-range:bytes=first-last header for multipart copy
       copy_source = @request.header["x-oss-copy-source"]
@@ -167,104 +164,67 @@ module OssEmulator
     end
 
     def parse_get()
-      if @path == ""
-        if @request.request_line =~ /\?uploads/
+      if @path == "" && @request.query_string
+        if @request.query_string == "uploads="
           @cmd = Request::GET_LIST_MULTIPART_UPLOADS
-        elsif @request.request_line =~ /\?logging/
+        elsif @request.query_string == "logging="
           @cmd = Request::GET_BUCKET_LOGGING
-        elsif @request.request_line =~ /\?website/
+        elsif @request.query_string == "website="
           @cmd = Request::GET_BUCKET_WEBSITE
-        elsif @request.request_line =~ /\?refer/
+        elsif @request.query_string == "refer="
           @cmd = Request::GET_BUCKET_REFER
-        elsif @request.request_line =~ /\?lifecycle/
+        elsif @request.query_string == "lifecycle="
           @cmd = Request::GET_BUCKET_LIFECYCLE
+        elsif @request.query_string == "acl="
+          @cmd = Request::GET_BUCKET_ACL
+        elsif query["location"] == ""
+          @cmd = Request::GET_BUCKET_LOCATION
+        elsif query["bucketInfo"] == ""
+          @cmd = Request::GET_BUCKET_INFO
         else
-          @cmd = Request::LIST_BUCKETS
+          @cmd = Request::GET_BUCKET
+        end
+      elsif @path != ""  # bucket && object
+        if query["acl"] == ""
+          @cmd = Request::GET_OBJECT_ACL
+        elsif query["objectMeta"] == "" || @request.query_string == "objectMeta="
+          @cmd = Request::GET_OBJECT_META
+        elsif @request.query_string == "symlink="
+          @cmd = Request::GET_SYMLINK
+        elsif @request.request_line == "uploadId="
+          @cmd = Request::GET_LIST_PARTS
+        else
+          if @method=="HEAD"
+            @cmd = Request::HEAD_OBJECT
+          else
+            @cmd = Request::GET_OBJECT
+          end
         end
       else
-        if @is_path_style
-          elems = @path[1,@path_length].split("/")
-          # @bucket = elems[0]
-        else
-          elems = @path.split("/")
-        end
-
-        if elems.size < 2  # bucket only
-          if query["acl"] == ""
-            @cmd = Request::GET_BUCKET_ACL
-          elsif query["location"] == ""
-            @cmd = Request::GET_BUCKET_LOCATION
-          elsif query["bucketInfo"] == ""
-            @cmd = Request::GET_BUCKET_INFO
-          else
-            @cmd = Request::GET_BUCKET
-          end
-        else  # bucket && object
-          if query["acl"] == ""
-            @cmd = Request::GET_OBJECT_ACL
-          elsif query["objectMeta"] == "" || @request.request_line =~ /\?objectMeta/
-            @cmd = Request::GET_OBJECT_META
-          elsif @request.request_line =~ /\?symlink/
-            @cmd = Request::GET_SYMLINK
-          elsif @request.request_line =~ /\?uploadId/
-            @cmd = Request::GET_LIST_PARTS
-          else
-            if @method=="HEAD"
-              @cmd = Request::HEAD_OBJECT
-            else
-              @cmd = Request::GET_OBJECT
-            end
-          end
-          # @object = elems[1,elems.size].join('/')
-        end
+        @cmd = Request::LIST_BUCKETS
       end
     end
 
     def parse_delete()
-      if @path == "/" && @is_path_style
+      if @path == ""
         @cmd = Request::REQUEST_ERROR
-      else
-        if @is_path_style
-          elems = @path[1,@path_length].split("/")
-          @bucket = elems[0]
+      elsif @request.query_string
+        if @request.query_string == "logging="
+          @cmd = Request::DELETE_BUCKET_LOGGING
+        elsif @request.query_string == "website="
+          @cmd = Request::DELETE_BUCKET_WEBSITE
+        elsif @request.query_string == "lifecycle="
+          @cmd = Request::DELETE_BUCKET_LIFECYCLE
+        elsif @request.request_line =~ /\?uploadId/
+          @cmd = Request::DELETE_ABORT_MULTIPART_UPLOAD
         else
-          elems = @path.split("/")
-        end
-
-        if elems.size == 0
-          Log.raise("Request.parse_delete : Unsupported Operation. ")
-        elsif elems.size == 1
-          if @request.request_line =~ /\?logging/
-            @cmd = Request::DELETE_BUCKET_LOGGING
-          elsif @request.request_line =~ /\?website/
-            @cmd = Request::DELETE_BUCKET_WEBSITE
-          elsif @request.request_line =~ /\?lifecycle/
-            @cmd = Request::DELETE_BUCKET_LIFECYCLE
-          else
-            @cmd = Request::DELETE_BUCKET
-          end
-        else
-          # AbortMultipartUpload
-          if @request.request_line =~ /\?uploadId/
-            @cmd = Request::DELETE_ABORT_MULTIPART_UPLOAD
-          else
-            @cmd = Request::DELETE_OBJECT
-          end
-          # @object = elems[1,elems.size].join('/')
+          @cmd = Request::DELETE_OBJECT
         end
       end
     end
 
     def parse_post()
       @path_length = @path.size
-
-      if @is_path_style
-        elems = @path[1, @path_length].split("/")
-        # @bucket = elems[0]
-        # @object = elems[1..-1].join('/') if elems.size >= 2
-      else
-        # @object = @path[1..-1]
-      end
 
       if @query_parser.has_key?('uploads')  # InitiateMultipartUpload
         @cmd = Request::POST_INIT_MULTIPART_UPLOAD

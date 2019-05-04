@@ -43,7 +43,7 @@ module OssEmulator
       when Request::GET_BUCKET_ACL
         Bucket.get_bucetk_acl(req.bucket, response)
       when Request::GET_BUCKET_INFO
-        Bucket.get_bucetk_info(req.bucket, response)
+        Bucket.get_bucket_info(req.bucket, response)
       when Request::GET_BUCKET_LOCATION
         Bucket.get_bucket_location(response)
       when Request::GET_BUCKET_LOGGING
@@ -74,7 +74,6 @@ module OssEmulator
     end # do_GET
 
     def do_PUT(request, response)
-      puts request
       req = OssEmulator::Request.new(request)
       req.parse()
 
