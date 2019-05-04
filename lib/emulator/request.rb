@@ -59,6 +59,7 @@ module OssEmulator
                   :bucket, :bucket_name, :object, :src_bucket, :src_object, :path_length
 
     def initialize(request)
+      puts request
       @request = request
       @query = @request.query
       @query_parser = CGI::parse(request.request_uri.query || "")
@@ -216,9 +217,9 @@ module OssEmulator
           @cmd = Request::DELETE_BUCKET_LIFECYCLE
         elsif @request.request_line =~ /\?uploadId/
           @cmd = Request::DELETE_ABORT_MULTIPART_UPLOAD
-        else
-          @cmd = Request::DELETE_OBJECT
         end
+      else
+        @cmd = Request::DELETE_OBJECT
       end
     end
 

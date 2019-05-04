@@ -7,6 +7,7 @@ COPY lib lib
 COPY log log
 COPY test test
 COPY start_server.sh .
+RUN mkdir store
 RUN gem install thor builder
 
 EXPOSE 8880
