@@ -44,7 +44,6 @@ module OssEmulator
       end
 
       obj_dir = File.join(Config.store, bucket, object)
-      puts obj_dir
       if part_number
         object_content_filename = File.join(obj_dir, "#{Store::OBJECT_CONTENT_PREFIX}#{part_number}")
       else
@@ -70,9 +69,7 @@ module OssEmulator
         f_object_content.syswrite(form_data['file'])
       else
         total_size = 0
-        puts total_size
-        request.body do |chunk|
-          puts chunk
+        request.body.each_line do |chunk|
           f_object_content.syswrite(chunk)
           total_size += chunk.bytesize
           if check_chunked_filesize && total_size>Object::MAX_OBJECT_FILE_SIZE
