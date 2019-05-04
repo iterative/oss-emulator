@@ -50,14 +50,11 @@ module OssEmulator
     # PutBucket=CreateBucket
     def self.create_bucket(bucket, request, response)
       # InvalidBucketName
-      puts 100
       return if OssResponse.response_invalid_bucket_name(response, bucket)
 
-      puts 200
       # TooManyBuckets
       return if OssResponse.response_too_many_buckets(response)
 
-      puts 300
       bucket_folder = File.join(Config.store, bucket)
       bucket_metadata_file = File.join(bucket_folder, Store::BUCKET_METADATA)
       if not ( File.exist?(bucket_folder) && File.exist?(bucket_metadata_file) )
@@ -94,7 +91,7 @@ module OssEmulator
       body = ""
       xml = Builder::XmlMarkup.new(:target => body)
       xml.instruct! :xml, :version=>"1.0", :encoding=>"UTF-8"
-      xml.ListBucketResult(:xmlns => HttpMsg::XMLNS) { |lbr|
+      xml.ListBucketResult() { |lbr|
         lbr.Name(bucket)
         lbr.Prefix(filter[:prefix])
         lbr.Marker(filter[:marker])
@@ -125,7 +122,7 @@ module OssEmulator
     end
 
     # GetBucketInfo
-    def self.get_bucetk_info(bucket, response)
+    def self.get_bucket_info(bucket, response)
       # NoSuchBucket
       return if OssResponse.response_no_such_bucket(response, bucket)
 
